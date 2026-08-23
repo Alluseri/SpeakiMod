@@ -215,6 +215,7 @@ var lunHudElements = {
 var lunPanelElements = {
 	targetZone: null
 };
+var lunMenuFoldingLevel = 0;
 
 var lunTickCount = 0;
 var lunSleep = 0;
@@ -230,6 +231,7 @@ var lunChannelTrackerNextTicks = 0;
 var lunWalkToPortal = -1;
 var lunAutoTravelTarget = null;
 var lunCameraLocked = false;
+var lunNametagsHidden = false;
 var lunViewClip = false;
 
 const spkmodBorderWidth = "3px";
@@ -248,6 +250,7 @@ document.head.appendChild(buildElement(
 			left: 5px;
 			z-index: 500000;
 			color: #EEE;
+			user-select: none;
 		}
 		#spkmod-main {
 			display: flex;
@@ -321,7 +324,27 @@ document.body.appendChild(
 		}, [
 			buildElement("span", {
 				id: "spkmod-header",
-				innerText: "SpeakiMod v2"
+				innerText: "SpeakiMod v2",
+				onclick: e => {
+					lunMenuFoldingLevel = (lunMenuFoldingLevel + 1 % 4);
+					switch (lunMenuFoldingLevel) {
+						case 0:
+							// TODO: Hide/unhide channel tracker should disable the tracker functionality
+							document.querySelector("#spkmod-panel").style.display = "";
+							lunHudElements.channelTracker.style.display = "";
+							document.querySelector("#spkmod-hud").style.opacity = "";
+							break;
+						case 1:
+							document.querySelector("#spkmod-panel").style.display = "none";
+							break;
+						case 2:
+							lunHudElements.channelTracker.style.display = "none";
+							break;
+						case 3:
+							document.querySelector("#spkmod-hud").style.opacity = "10%";
+							break;
+					}
+				}
 			}),
 			lunHudElements.playersNearby = buildElement("span", {
 				innerText: "Players nearby: 0"
@@ -361,6 +384,15 @@ document.body.appendChild(
 			}),
 			buildElement("button", {
 				className: "spkmod-panel-btn",
+				innerText: "Turn to Camera",
+				value: "",
+				onclick: e => {
+					gameState.playerContainer.rotation.y = gameState.cameraController.cameraYaw;
+					gameState.moveSendAccumulator = 1;
+				}
+			}),
+			buildElement("button", { // TODO: Hide when not watching anyone?
+				className: "spkmod-panel-btn",
 				innerText: "Reset Camera",
 				value: "",
 				onclick: e => {
@@ -374,6 +406,15 @@ document.body.appendChild(
 				onclick: e => {
 					lunCameraLocked = !lunCameraLocked;
 					e.target.innerText = lunCameraLocked ? "Unlock Camera" : "Lock Camera";
+				}
+			}),
+			buildElement("button", {
+				className: "spkmod-panel-btn",
+				innerText: "Hide Nametags",
+				value: "",
+				onclick: e => {
+					lunNametagsHidden = !lunNametagsHidden;
+					e.target.innerText = lunNametagsHidden ? "Show Nametags" : "Hide Nametags";
 				}
 			}),
 			buildElement("button", {
@@ -396,11 +437,11 @@ document.body.appendChild(
 						if (lunWalkToPortal == -1) {
 							lunWalkToPortal = lunPanelElements.targetZone.value - 0;
 							e.target.innerText = "Stop Walking";
-							chatLog("Walking to " + lunPanelElements.targetZone.options[lunPanelElements.targetZone.selectedIndex].innerText + " (" + lunWalkToPortal + ")");
+							chatLog("Walking to " + lunPanelElements.targetZone.options[lunPanelElements.targetZone.selectedIndex].innerText + " (" + lunWalkToPortal + ").");
 						} else {
 							lunWalkToPortal = -1;
 							e.target.innerText = "Walk to Portal";
-							chatLog("Stopped autowalking");
+							chatLog("Stopped autowalking.");
 						}
 
 						e.target.blur();
@@ -535,8 +576,7 @@ function tick() {
 		lunChannelTrackerNextTicks = lunTickCount + lunChannelTrackerWindow;
 	}
 
-	// When changing zones:
-	// Stopped autowalking because there doesn't seem to be a way to get to the specified zone (z 0 -> -1, lw -1 -> 5)
+	gameState.remotePlayers.remotePlayers.forEach(t => t.container.children[0].children[1].visible = !lunNametagsHidden);
 
 	if (lunWalkToPortal != -1 && zoneId) {
 		// TODO: This doesn't reset the button state
@@ -545,7 +585,7 @@ function tick() {
 		var targetIndex = ZoneSequences.indexOf(lunWalkToPortal - 0);
 
 		if (currentIndex == -1 || targetIndex == -1) {
-			chatLog("Stopped autowalking because there doesn't seem to be a way to get to the specified zone (z " + zoneId + " -> " + currentIndex + ", lw " + lunWalkToPortal + " -> " + targetIndex + ")");
+			chatLog("Stopped autowalking because there doesn't seem to be a way to get to the specified zone (z " + zoneId + " -> " + currentIndex + ", lw " + lunWalkToPortal + " -> " + targetIndex + ").");
 			lunWalkToPortal = -1;
 			return;
 		}
@@ -562,14 +602,14 @@ function tick() {
 			var portals = Portals[zoneId];
 			if (!portals) {
 				lunWalkToPortal = -1;
-				chatLog("Stopped autowalking because the current zone has no portals registered");
+				chatLog("Stopped autowalking because the current zone has no portals registered.");
 				return;
 			}
 
 			var targetPortal = portals[targetZone];
 			if (!targetPortal) {
 				lunWalkToPortal = -1;
-				chatLog("Stopped autowalking because it seems there is a portal missing");
+				chatLog("Stopped autowalking because it seems there is a portal missing.");
 				return;
 			}
 
@@ -577,7 +617,7 @@ function tick() {
 
 			if (lunSleep <= 0 && distanceToVector(lunAutoTravelTarget) <= 3) {
 				gameState.tryUsePortal();
-				lunSleep = sec(1);
+				lunSleep = sec(3);
 			}
 		}
 	}
