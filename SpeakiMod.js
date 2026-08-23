@@ -394,7 +394,7 @@ document.body.appendChild(
 					value: "",
 					onclick: e => {
 						if (lunWalkToPortal == -1) {
-							lunWalkToPortal = lunPanelElements.targetZone.value;
+							lunWalkToPortal = lunPanelElements.targetZone.value - 0;
 							e.target.innerText = "Stop Walking";
 							chatLog("Walking to " + lunPanelElements.targetZone.options[lunPanelElements.targetZone.selectedIndex].innerText + " (" + lunWalkToPortal + ")");
 						} else {
@@ -538,8 +538,8 @@ function tick() {
 	if (lunWalkToPortal != -1) {
 		// TODO: This doesn't reset the button state
 
-		var currentIndex = ZoneSequences.indexOf(zoneId);
-		var targetIndex = ZoneSequences.indexOf(lunWalkToPortal);
+		var currentIndex = ZoneSequences.indexOf(zoneId - 0);
+		var targetIndex = ZoneSequences.indexOf(lunWalkToPortal - 0);
 
 		if (currentIndex == -1 || targetIndex == -1) {
 			lunWalkToPortal = -1;
