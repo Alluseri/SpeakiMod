@@ -324,7 +324,7 @@ document.body.appendChild(
 		}, [
 			buildElement("span", {
 				id: "spkmod-header",
-				innerText: "SpeakiMod v2",
+				innerText: "SpeakiMod v3",
 				onclick: e => {
 					lunMenuFoldingLevel = (lunMenuFoldingLevel + 1) % 4;
 					switch (lunMenuFoldingLevel) {
