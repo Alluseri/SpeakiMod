@@ -171,6 +171,9 @@ const Portals = {
 		}
 	}
 };
+// Very cringe and could be generated automatically but gijfogjifsdogd fuck graph theory
+// This won't work btw if I decide to add quest portal support & Monatium
+const ZoneSequences = [1, 2, 5, 3, 6, 4, 7, 8, 9, 10];
 
 var GameData = null;
 
@@ -214,6 +217,7 @@ var lunPanelElements = {
 };
 
 var lunTickCount = 0;
+var lunSleep = 0;
 const lunTPS = 50;
 const lunExpTrackerWindow = 60000 / lunTPS;
 var lunExpTrackerNextTicks = 0;
@@ -224,8 +228,11 @@ var lunChannelTrackerWindow = 7500 / lunTPS;
 var lunChannelTrackerNextTicks = 0;
 
 var lunWalkToPortal = -1;
+var lunAutoTravelTarget = null;
 var lunCameraLocked = false;
 var lunViewClip = false;
+
+const spkmodBorderWidth = "3px";
 
 document.head.appendChild(buildElement(
 	"style",
@@ -247,7 +254,7 @@ document.head.appendChild(buildElement(
 			flex-direction: column;
 			gap: 1px;
 			background-color: #000C;
-			border: 4px solid #DDD;
+			border: ${spkmodBorderWidth} solid #DDD;
 			border-radius: 8px;
 			padding: 6px;
 		}
@@ -263,7 +270,7 @@ document.head.appendChild(buildElement(
 		.spkmod-panel-btn {
 			color: #EEE;
 			background-color: #000C;
-			border: 4px solid #DDD;
+			border: ${spkmodBorderWidth} solid #DDD;
 			border-radius: 8px;
 			padding: 5px;
 			font-size: 11pt;
@@ -284,8 +291,8 @@ document.head.appendChild(buildElement(
 		}
 		.spkmod-panel-counter {
 			outline: none;
-			border: 4px solid #DDD;
-			border-radius: 4px;
+			border: ${spkmodBorderWidth} solid #DDD;
+			border-radius: 8px;
 			background-color: #000C;
 			color: #EEE;
 			height: min-content;
@@ -293,6 +300,12 @@ document.head.appendChild(buildElement(
 		.spkmod-panel-counter::-webkit-inner-spin-button, 
 		.spkmod-panel-counter::-webkit-outer-spin-button {
 			opacity: 1;
+		}
+		.spkmod-panel-combo {
+			outline: none;
+			background-color: #000C;
+			color: #EEE;
+			border-radius: 8px;
 		}
 		`
 	}
@@ -381,9 +394,11 @@ document.body.appendChild(
 					onclick: e => {
 						if (lunWalkToPortal == -1) {
 							lunWalkToPortal = lunPanelElements.targetZone.value;
+							e.target.innerText = "Stop Walking";
 							chatLog("Walking to area " + lunWalkToPortal);
 						} else {
 							lunWalkToPortal = -1;
+							e.target.innerText = "Walk to Portal";
 							chatLog("Stopped autowalking");
 						}
 					}
@@ -398,6 +413,31 @@ document.body.appendChild(
 		])
 	])
 );
+
+function sec(t) {
+	return t * lunTPS;
+}
+
+function normalizeVector(x, y) {
+	let n = Math.sqrt(x * x + y * y);
+	return n < 1e-6 ? {
+		x: 0,
+		z: 0
+	} : {
+		x: x / n,
+		z: y / n
+	}
+}
+
+function distanceToVector(vec) {
+	var ep = getPlayerPos();
+
+	return Math.hypot(vec.x - ep.x, vec.z - ep.z);
+}
+
+function getPlayerPos() {
+	return gameState.playerContainer.position;
+}
 
 function chatLog(msg) {
 	gameState.chatBox.append(-1337, "SpeakiMod", msg);
@@ -442,12 +482,17 @@ function onGameDataUpdate() {
 }
 
 function tick() {
+	// TODO: Reset some settings if player is dead
+
+	lunAutoTravelTarget = null;
 	lunTickCount++;
+	lunSleep--;
 
 	var playerExp = gameState.myStat.exp;
+	var zoneId = gameState.zoneId % 10000;
 
 	lunHudElements.playersNearby.innerText = "Players nearby: " + gameState.remotePlayers.remotePlayers.size;
-	lunHudElements.zoneId.innerText = "Zone ID: " + (gameState.zoneId % 10000);
+	lunHudElements.zoneId.innerText = "Zone ID: " + zoneId;
 
 	if (lunExpTrackerStartExp > playerExp || lunTickCount >= lunExpTrackerNextTicks) {
 		lunExpTrackerSpeed = (playerExp - lunExpTrackerStartExp) / lunExpTrackerWindow * (1000 / lunTPS);
@@ -487,8 +532,69 @@ function tick() {
 	}
 
 	if (lunWalkToPortal != -1) {
-		// var currentZone = 
+		// TODO: This doesn't reset the button state
+
+		var currentIndex = ZoneSequences.indexOf(zoneId);
+		var targetIndex = ZoneSequences.indexOf(lunWalkToPortal);
+
+		if (currentIndex == -1 || targetIndex == -1) {
+			lunWalkToPortal = -1;
+			chatLog("Stopped autowalking because there doesn't seem to be a way to get to the specified zone");
+			return;
+		}
+
+		if (currentIndex == targetIndex) {
+			return;
+		}
+
+		const sg = Math.sign(targetIndex - currentIndex);
+
+		if (sg == 0) {
+			lunWalkToPortal = -1;
+			chatLog("You've arrived!");
+			return;
+		} else {
+			var targetZone = ZoneSequences[currentIndex + sg];
+
+			var portals = Portals[zoneId];
+			if (!portals) {
+				lunWalkToPortal = -1;
+				chatLog("Stopped autowalking because the current zone has no portals registered");
+				return;
+			}
+
+			var targetPortal = portals[targetZone];
+			if (!targetPortal) {
+				lunWalkToPortal = -1;
+				chatLog("Stopped autowalking because it seems there is a portal missing");
+				return;
+			}
+
+			lunAutoTravelTarget = targetPortal.pos;
+
+			if (lunSleep <= 0 && distanceToVector(lunAutoTravelTarget)) {
+				gameState.tryUsePortal();
+				lunSleep = sec(1);
+			}
+		}
 	}
+}
+
+var hkCombatAssistUpdate = gameState.combatAssist.update.bind(gameState.combatAssist);
+gameState.combatAssist.update = function (e) {
+	if (lunAutoTravelTarget) {
+		var pp = getPlayerPos();
+
+		return {
+			moveDir: normalizeVector(
+				lunAutoTravelTarget.x - pp.x,
+				lunAutoTravelTarget.z - pp.z
+			),
+			castSkillId: null
+		};
+	}
+
+	return hkCombatAssistUpdate(e);
 }
 
 var hkComputeCameraTargetPosition = gameState.cameraController.computeCameraTargetPosition.bind(gameState.cameraController);
