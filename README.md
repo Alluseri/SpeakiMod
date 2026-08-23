@@ -11,13 +11,17 @@ Unlike its evil twin, SpeakiMod **is fully safe** to use on your main account si
 - Channel tracker
 - Dance anywhere
 - Say "joayo!" anywhere
-- Lock the camera ("cinematic view")
+- Lock the camera (like in old PS1 games)
 - ViewClip (allow the camera to phase through walls)
-- Watch from other players' perspective
+- Watch the game from another player's perspective
+- Hide other players' nametags
+- Turn Speaki to face the camera (useful for posing)
+- Automatically walk towards portals (**must be attended**, because no auto-eat & no obstacle avoidance)
+- Fold the HUD by clicking on the mod title (up to 3 clicks)
 - Control camera zoom (`!zoom` chat command)
 
 ### Preview
-<img src="https://cdn.nest.rip/uploads/7b2a9b7b-928b-4ac3-87d2-6104d8490cc6.png">
+<img src="https://cdn.nest.rip/uploads/4ceeb213-8112-43ef-89fc-7ae3f0118133.png">
 <img src="https://cdn.nest.rip/uploads/bbb13c2f-014e-4278-b821-18eb481c5d8c.png">
 
 ## Injection Guide
