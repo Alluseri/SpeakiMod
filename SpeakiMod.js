@@ -306,6 +306,7 @@ document.head.appendChild(buildElement(
 			background-color: #000C;
 			color: #EEE;
 			border-radius: 8px;
+			border: ${spkmodBorderWidth} solid #DDD;
 		}
 		`
 	}
@@ -401,6 +402,9 @@ document.body.appendChild(
 							e.target.innerText = "Walk to Portal";
 							chatLog("Stopped autowalking");
 						}
+
+						e.target.blur();
+						lunPanelElements.targetZone.blur();
 					}
 				}),
 				lunPanelElements.targetZone = buildElement("select", {
@@ -539,11 +543,7 @@ function tick() {
 
 		if (currentIndex == -1 || targetIndex == -1) {
 			lunWalkToPortal = -1;
-			chatLog("Stopped autowalking because there doesn't seem to be a way to get to the specified zone");
-			return;
-		}
-
-		if (currentIndex == targetIndex) {
+			chatLog("Stopped autowalking because there doesn't seem to be a way to get to the specified zone (z " + zoneId + " -> " + currentIndex + ", lw " + lunWalkToPortal + " -> " + targetIndex + ")");
 			return;
 		}
 
