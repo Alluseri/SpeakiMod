@@ -535,15 +535,18 @@ function tick() {
 		lunChannelTrackerNextTicks = lunTickCount + lunChannelTrackerWindow;
 	}
 
-	if (lunWalkToPortal != -1) {
+	// When changing zones:
+	// Stopped autowalking because there doesn't seem to be a way to get to the specified zone (z 0 -> -1, lw -1 -> 5)
+
+	if (lunWalkToPortal != -1 && zoneId) {
 		// TODO: This doesn't reset the button state
 
 		var currentIndex = ZoneSequences.indexOf(zoneId - 0);
 		var targetIndex = ZoneSequences.indexOf(lunWalkToPortal - 0);
 
 		if (currentIndex == -1 || targetIndex == -1) {
-			lunWalkToPortal = -1;
 			chatLog("Stopped autowalking because there doesn't seem to be a way to get to the specified zone (z " + zoneId + " -> " + currentIndex + ", lw " + lunWalkToPortal + " -> " + targetIndex + ")");
+			lunWalkToPortal = -1;
 			return;
 		}
 
@@ -572,7 +575,7 @@ function tick() {
 
 			lunAutoTravelTarget = targetPortal.pos;
 
-			if (lunSleep <= 0 && distanceToVector(lunAutoTravelTarget)) {
+			if (lunSleep <= 0 && distanceToVector(lunAutoTravelTarget) <= 3) {
 				gameState.tryUsePortal();
 				lunSleep = sec(1);
 			}
