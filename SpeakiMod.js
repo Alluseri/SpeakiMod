@@ -324,9 +324,9 @@ document.body.appendChild(
 		}, [
 			buildElement("span", {
 				id: "spkmod-header",
-				innerText: "SpeakiMod v3",
+				innerText: "SpeakiMod v2",
 				onclick: e => {
-					lunMenuFoldingLevel = (lunMenuFoldingLevel + 1 % 4);
+					lunMenuFoldingLevel = (lunMenuFoldingLevel + 1) % 4;
 					switch (lunMenuFoldingLevel) {
 						case 0:
 							// TODO: Hide/unhide channel tracker should disable the tracker functionality
