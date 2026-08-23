@@ -27,7 +27,7 @@ Unlike its evil twin, SpeakiMod **is fully safe** to use on your main account si
 ## Injection Guide
 ### Method 1: Using a Chrome extension (Recommended)
 1. Download the latest Injector extension from the [Releases page](https://github.com/Alluseri/SpeakiMod/releases)
-2. Unpack the .zip into a new folder (**if you move the folder after installing the extension, you will need to reinstall it!**)
+2. Unpack the .zip into any folder of your choice (**you will need to reinstall the extension if you move the folder later!**)
 3. Navigate to "Manage Extensions" (located at `chrome://extensions/`)
 4. Enable Developer mode (usually a checkbox at the top right of the page)
 5. Click "Load unpacked" (usually at the top left)
