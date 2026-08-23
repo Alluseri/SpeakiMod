@@ -3,6 +3,14 @@ if (!window.gameState) {
 	throw "Injection error...";
 }
 
+if (!window.i18n) {
+	alert("SpeakiMod is not installed correctly or the game updated! The mod will work, but some translation-related features may not.");
+	window.i18n = e => e;
+}
+
+// This is needed to make requests to 'gameData', 'channels' and other API endpoints
+const AuthToken = gameState.socket.socket.url.match(/eyJhb.+?(?=&|$)/);
+
 const Emotes = {
 	Cry: 1,
 	Jump: 2,
@@ -13,6 +21,176 @@ const Emotes = {
 	StrokeCancel: 7,
 	Dance: 8
 };
+
+// This map does NOT have quest locations and Monatium!
+const Portals = {
+	1: {
+		2: {
+			portalId: 1,
+			pos: {
+				x: 95,
+				z: 50
+			}
+		}
+	},
+	2: {
+		1: {
+			portalId: 2,
+			pos: {
+				x: 105,
+				z: 50
+			}
+		},
+		5: {
+			portalId: 7,
+			pos: {
+				x: 196,
+				z: 100
+			}
+		}
+	},
+	5: {
+		2: {
+			portalId: 8,
+			pos: {
+				x: 204,
+				z: 100
+			}
+		},
+		3: {
+			portalId: 3,
+			pos: {
+				x: 296,
+				z: 120
+			}
+		}
+	},
+	3: {
+		5: {
+			portalId: 4,
+			pos: {
+				x: 306,
+				z: 120
+			}
+		},
+		6: {
+			portalId: 9,
+			pos: {
+				x: 426,
+				z: 100
+			}
+		}
+	},
+	6: {
+		3: {
+			portalId: 10,
+			pos: {
+				x: 434,
+				z: 100
+			}
+		},
+		4: {
+			portalId: 5,
+			pos: {
+				x: 554,
+				z: 100
+			}
+		}
+	},
+	4: {
+		6: {
+			portalId: 6,
+			pos: {
+				x: 580,
+				z: 100
+			}
+		},
+		7: {
+			portalId: 11,
+			pos: {
+				x: 656,
+				z: 100
+			}
+		}
+	},
+	7: {
+		4: {
+			portalId: 12,
+			pos: {
+				x: 664,
+				z: 100
+			}
+		},
+		8: {
+			portalId: 13,
+			pos: {
+				x: 756,
+				z: 100
+			}
+		}
+	},
+	8: {
+		7: {
+			portalId: 14,
+			pos: {
+				x: 764,
+				z: 100
+			}
+		},
+		9: {
+			portalId: 15,
+			pos: {
+				x: 956,
+				z: 100
+			}
+		}
+	},
+	9: {
+		8: {
+			portalId: 16,
+			pos: {
+				x: 964,
+				z: 100
+			}
+		},
+		10: {
+			portalId: 17,
+			pos: {
+				x: 1136,
+				z: 100
+			}
+		}
+	},
+	10: {
+		9: {
+			portalId: 18,
+			pos: {
+				x: 1144,
+				z: 100
+			}
+		}
+	}
+};
+
+var GameData = null;
+
+fetch("https://sr1.overture.io.kr/api/gamedata", {
+	"method": "GET",
+	"headers": {
+		"authorization": "Bearer " + AuthToken
+	},
+	"mode": "cors"
+}).then(async x => {
+	if (!x.ok) {
+		// TODO: Special case for 429? idk if it will happen or not
+		alert("SpeakiMod is outdated or the game servers are down! Failed to fetch gamedata: " + x.status + "\nSome features will be hidden.");
+		return;
+	}
+
+	GameData = await x.json();
+
+	onGameDataUpdate();
+});
 
 function buildElement(tag, characteristics, inner, callback) {
 	var elem = document.createElement(tag);
@@ -28,19 +206,24 @@ var lunHudElements = {
 	playersNearby: null,
 	expTrackerL1: null,
 	expTrackerL2: null,
-	channelTracker: null
+	channelTracker: null,
+	zoneId: null
+};
+var lunPanelElements = {
+	targetZone: null
 };
 
 var lunTickCount = 0;
-var lunTickTime = 50;
-var lunExpTrackerWindow = 60000 / lunTickTime;
+const lunTPS = 50;
+const lunExpTrackerWindow = 60000 / lunTPS;
 var lunExpTrackerNextTicks = 0;
 var lunExpTrackerStartExp = gameState.myStat.exp;
 var lunExpTrackerSpeed = 0;
 
-var lunChannelTrackerWindow = 7500 / lunTickTime;
+var lunChannelTrackerWindow = 7500 / lunTPS;
 var lunChannelTrackerNextTicks = 0;
 
+var lunWalkToPortal = -1;
 var lunCameraLocked = false;
 var lunViewClip = false;
 
@@ -93,6 +276,24 @@ document.head.appendChild(buildElement(
 			box-shadow: 0 .1875rem 0 #333;
 			background: #000;
 		}
+		.spkmod-panel-cat {
+			display: flex;
+			flex-direction: row;
+			gap: 4px;
+			align-items: center;
+		}
+		.spkmod-panel-counter {
+			outline: none;
+			border: 4px solid #DDD;
+			border-radius: 4px;
+			background-color: #000C;
+			color: #EEE;
+			height: min-content;
+		}
+		.spkmod-panel-counter::-webkit-inner-spin-button, 
+		.spkmod-panel-counter::-webkit-outer-spin-button {
+			opacity: 1;
+		}
 		`
 	}
 ));
@@ -106,10 +307,13 @@ document.body.appendChild(
 		}, [
 			buildElement("span", {
 				id: "spkmod-header",
-				innerText: "SpeakiMod v1.0.0"
+				innerText: "SpeakiMod v2"
 			}),
 			lunHudElements.playersNearby = buildElement("span", {
 				innerText: "Players nearby: 0"
+			}),
+			lunHudElements.zoneId = buildElement("span", {
+				innerText: "Zone ID: N/A"
 			}),
 			lunHudElements.expTrackerL1 = buildElement("span", {
 				innerText: "0 EXP per minute"
@@ -166,7 +370,31 @@ document.body.appendChild(
 					lunViewClip = !lunViewClip;
 					e.target.innerText = lunViewClip ? "ViewClip ON" : "ViewClip OFF";
 				}
-			})
+			}),
+			buildElement("div", {
+				className: "spkmod-panel-cat"
+			}, [
+				buildElement("button", {
+					className: "spkmod-panel-btn",
+					innerText: "Walk to Portal",
+					value: "",
+					onclick: e => {
+						if (lunWalkToPortal == -1) {
+							lunWalkToPortal = lunPanelElements.targetZone.value;
+							chatLog("Walking to area " + lunWalkToPortal);
+						} else {
+							lunWalkToPortal = -1;
+							chatLog("Stopped autowalking");
+						}
+					}
+				}),
+				lunPanelElements.targetZone = buildElement("select", {
+					className: "spkmod-panel-combo"
+				}, Object.keys(Portals).map(zoneId => buildElement("option", {
+					value: zoneId,
+					innerText: i18n(`content.zone.${zoneId}.name`)
+				})))
+			])
 		])
 	])
 );
@@ -209,16 +437,20 @@ if (hPartyTarget) {
 	alert("Warning: Couldn't find party target element. The Watch functionality will only be available through chat commands. Mod loaded too early?");
 }
 
+function onGameDataUpdate() {
+
+}
+
 function tick() {
 	lunTickCount++;
 
-	var authToken = gameState.socket.socket.url.substring(gameState.socket.socket.url.indexOf("access_token=") + "access_token=".length);
 	var playerExp = gameState.myStat.exp;
 
 	lunHudElements.playersNearby.innerText = "Players nearby: " + gameState.remotePlayers.remotePlayers.size;
+	lunHudElements.zoneId.innerText = "Zone ID: " + (gameState.zoneId % 10000);
 
 	if (lunExpTrackerStartExp > playerExp || lunTickCount >= lunExpTrackerNextTicks) {
-		lunExpTrackerSpeed = (playerExp - lunExpTrackerStartExp) / lunExpTrackerWindow * (1000 / lunTickTime);
+		lunExpTrackerSpeed = (playerExp - lunExpTrackerStartExp) / lunExpTrackerWindow * (1000 / lunTPS);
 
 		lunExpTrackerNextTicks = lunTickCount + lunExpTrackerWindow;
 		lunExpTrackerStartExp = playerExp;
@@ -232,17 +464,19 @@ function tick() {
 		lunHudElements.expTrackerL2.innerText = "Until next level: N/A";
 	}
 
+	lunHudElements.expTrackerL1.innerText += " (" + ((lunExpTrackerNextTicks - lunTickCount) * lunTPS / 1000).toFixed(0) + "s)";
+
 	if (lunTickCount >= lunChannelTrackerNextTicks) {
 		fetch("https://sr1.overture.io.kr/api/realtime/channels", {
 			"method": "GET",
 			"headers": {
-				"authorization": "Bearer " + authToken
+				"authorization": "Bearer " + AuthToken
 			},
 			"mode": "cors"
 		}).then(async x => {
 			var resp = (await x.json());
 			if (!x.ok) {
-				lunHudElements.channelTracker.innerText = "Channel tracker: N/A";
+				lunHudElements.channelTracker.innerText = "Channel tracker: Error " + x.status;
 				return;
 			}
 
@@ -250,6 +484,10 @@ function tick() {
 		});
 
 		lunChannelTrackerNextTicks = lunTickCount + lunChannelTrackerWindow;
+	}
+
+	if (lunWalkToPortal != -1) {
+		// var currentZone = 
 	}
 }
 
