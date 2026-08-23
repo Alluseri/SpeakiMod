@@ -25,8 +25,24 @@ Unlike its evil twin, SpeakiMod **is fully safe** to use on your main account si
 <img src="https://cdn.nest.rip/uploads/bbb13c2f-014e-4278-b821-18eb481c5d8c.png">
 
 ## Injection Guide
+### Method 1: Using a Chrome extension (Recommended)
+1. Download the latest Injector extension from the [Releases page](https://github.com/Alluseri/SpeakiMod/releases)
+2. Unpack the .zip into a new folder (**if you move the folder after installing the extension, you will need to reinstall it!**)
+3. Navigate to "Manage Extensions" (located at `chrome://extensions/`)
+4. Enable Developer mode (usually a checkbox at the top right of the page)
+5. Click "Load unpacked" (usually at the top left)
+6. Find and select the folder you unpacked the extension into, click "Select Folder"
+7. Final result (the ID may be different, and that's totally fine):
+
+<img src="https://cdn.nest.rip/uploads/4a223e70-8252-443d-af14-0d406c541d24.png">
+
+8. You're all set! Once you open Speaki RPG, SpeakiMod should just work™ without any additional actions on your behalf.
+
+### Method 2: Using DevTools
 > [!CAUTION]
 > The script has been reported **not to work correctly on Firefox**. You can still inject it, but chat commands may not work!
+>
+> This injection method does not support internationalization. Features relying on it, such as the portal walker, will display internal values (e.g. `content.zone.2.name`).
 
 1. Open Speaki RPG
 2. Do Ctrl+Shift+I to open DevTools
