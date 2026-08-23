@@ -395,7 +395,7 @@ document.body.appendChild(
 						if (lunWalkToPortal == -1) {
 							lunWalkToPortal = lunPanelElements.targetZone.value;
 							e.target.innerText = "Stop Walking";
-							chatLog("Walking to area " + lunWalkToPortal);
+							chatLog("Walking to " + lunPanelElements.targetZone.options[lunPanelElements.targetZone.selectedIndex].innerText + " (" + lunWalkToPortal + ")");
 						} else {
 							lunWalkToPortal = -1;
 							e.target.innerText = "Walk to Portal";
@@ -406,7 +406,7 @@ document.body.appendChild(
 				lunPanelElements.targetZone = buildElement("select", {
 					className: "spkmod-panel-combo"
 				}, Object.keys(Portals).map(zoneId => buildElement("option", {
-					value: zoneId,
+					value: zoneId - 0,
 					innerText: i18n(`content.zone.${zoneId}.name`)
 				})))
 			])
