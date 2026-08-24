@@ -358,6 +358,9 @@ document.head.appendChild(buildElement(
 			border-radius: 8px;
 			padding: 6px;
 		}
+		#spkmod-pq.hidden {
+			display: none;
+		}
 		#spkmod-pq-pbar {
 			margin-top: 2px;
 			background: #0F0;
@@ -514,7 +517,7 @@ document.body.appendChild(
 document.body.appendChild(
 	lunHudElements.pinnedQuest.panel = buildElement("div", {
 		id: "spkmod-pq",
-		hidden: true
+		className: "hidden"
 	}, [
 		buildElement("span", {
 			id: "spkmod-pq-header",
@@ -593,14 +596,14 @@ if (hPartyTarget) {
 	alert("Warning: Couldn't find party target element. The Watch functionality will only be available through chat commands. Mod loaded too early?");
 }
 
-const lunPinnedQuestInterval = sec(3);
+const lunPinnedQuestInterval = sec(2);
 var lunPinnedQuestPeriod = null;
 var lunPinnedQuestId = 0;
 var lunPinnedQuestContent = null;
 var lunPinnedQuestNextQueryTick = 0;
 
 function unpinQuest() {
-	lunHudElements.pinnedQuest.panel.hidden = true;
+	lunHudElements.pinnedQuest.panel.className = "hidden";
 
 	lunPinnedQuestContent = null;
 	lunPinnedQuestPeriod = null;
@@ -617,7 +620,7 @@ function pinQuest(quest) {
 	lunHudElements.pinnedQuest.content.innerText = lunPinnedQuestContent;
 	lunHudElements.pinnedQuest.pbar.style.width = `${(quest.currentAmount / quest.targetAmount * 100).toFixed(0)}%`;
 
-	lunHudElements.pinnedQuest.panel.hidden = false;
+	lunHudElements.pinnedQuest.panel.className = "";
 }
 
 if (window.questManager) {
