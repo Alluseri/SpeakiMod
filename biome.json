@@ -1,0 +1,11 @@
+{
+  "linter": {
+    "rules": {
+      "suspicious": {
+        "noAssignInExpressions": "off",
+		    "noDoubleEquals": "off",
+        "useIterableCallbackReturn": "off"
+      }
+    }
+  }
+}
