@@ -375,7 +375,8 @@ document.head.appendChild(buildElement(
 			border-radius: 8px;
 			padding: 6px;
 		}
-		.hidden {
+		/* honest to god forgot CSS is stupid like that */
+		.hidden, #spkmod-pq.hidden {
 			display: none;
 		}
 		#spkmod-pq-pbar {
