@@ -358,10 +358,8 @@ document.head.appendChild(buildElement(
 			border-radius: 8px;
 			padding: 6px;
 		}
-		#spkmod-pq.hidden {
-			display: none;
-		}
 		#spkmod-pq-pbar {
+			margin-top: 2px;
 			background: #0F0;
 			height: 2px;
 		}
@@ -515,8 +513,7 @@ document.body.appendChild(
 
 document.body.appendChild(
 	lunHudElements.pinnedQuest.panel = buildElement("div", {
-		id: "spkmod-pq",
-		className: "hidden"
+		id: "spkmod-pq"
 	}, [
 		buildElement("span", {
 			id: "spkmod-pq-header",
@@ -611,7 +608,7 @@ function unpinQuest() {
 }
 
 function pinQuest(quest) {
-	lunPinnedQuestContent = `${i18n(`content.quest.${quest.code}.title`)} ${quest.currentAmount} / ${quest.targetAmount}`;
+	lunPinnedQuestContent = `${i18n(`content.quest.${quest.code}.description`)} ${quest.currentAmount} / ${quest.targetAmount}`;
 	lunPinnedQuestPeriod = quest.period;
 	lunPinnedQuestId = quest.questId;
 	lunPinnedQuestNextQueryTick = lunTickCount + sec(1);
@@ -721,7 +718,7 @@ function tick() {
 			}
 
 			// TODO: This is probably duplicate code from pinQuest
-			lunPinnedQuestContent = `${i18n(`content.quest.${q.code}.title`)} ${q.currentAmount} / ${q.targetAmount}`;
+			lunPinnedQuestContent = `${i18n(`content.quest.${q.code}.description`)} ${q.currentAmount} / ${q.targetAmount}`;
 
 			lunHudElements.pinnedQuest.content.innerText = lunPinnedQuestContent;
 			lunHudElements.pinnedQuest.pbar.style.width = `${(q.currentAmount / q.targetAmount * 100).toFixed(0)}%`;
