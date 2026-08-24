@@ -388,7 +388,7 @@ document.body.appendChild(
 		}, [
 			buildElement("span", {
 				id: "spkmod-header",
-				innerText: "SpeakiMod v5.rc-1",
+				innerText: "SpeakiMod v5.rc-2",
 				onclick: _ => {
 					lunMenuFoldingLevel = (lunMenuFoldingLevel + 1) % 4;
 					switch (lunMenuFoldingLevel) {
@@ -798,10 +798,11 @@ function tick() {
 
 			lunAutoTravelTarget = targetPortal.pos;
 
-			if (lunSleep <= 0 && distanceToVector(lunAutoTravelTarget) <= 3) {
+			// tryUsePortal thankfully automatically handles transition delays (for now at least)
+			// this logic HEAVILY relies on that function returning 'true' during transitions
+			// and not sending off anything unnecessary to the server (thanks to gs.findNearbyPortal())
+			if (gameState.tryUsePortal()) {
 				lunAutoTravelTarget = null;
-				gameState.tryUsePortal();
-				lunSleep = sec(3);
 			}
 		}
 	}
