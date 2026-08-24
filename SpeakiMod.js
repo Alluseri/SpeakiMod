@@ -186,6 +186,15 @@ const Portals = {
 // Very cringe and could be generated automatically but gijfogjifsdogd fuck graph theory
 // This won't work btw if I decide to add quest portal support & Monatium
 const ZoneSequences = [1, 2, 5, 3, 6, 4, 7, 8, 9, 10];
+const Waypoints = {
+	5: [
+		{
+			x: 270,
+			z: 95,
+			crossed: false
+		}
+	]
+};
 
 var GameData = null;
 
@@ -379,7 +388,7 @@ document.body.appendChild(
 		}, [
 			buildElement("span", {
 				id: "spkmod-header",
-				innerText: "SpeakiMod v4",
+				innerText: "SpeakiMod v5.rc-1",
 				onclick: _ => {
 					lunMenuFoldingLevel = (lunMenuFoldingLevel + 1) % 4;
 					switch (lunMenuFoldingLevel) {
@@ -492,9 +501,9 @@ document.body.appendChild(
 						if (lunWalkToPortal == -1) {
 							lunWalkToPortal = lunPanelElements.targetZone.value - 0;
 							e.target.innerText = "Stop Walking";
-							chatLog("Walking to " + lunPanelElements.targetZone.options[lunPanelElements.targetZone.selectedIndex].innerText + " (" + lunWalkToPortal + ").");
+							chatLog(`Walking to ${lunPanelElements.targetZone.options[lunPanelElements.targetZone.selectedIndex].innerText} (${lunWalkToPortal}).`);
 						} else {
-							lunWalkToPortal = -1;
+							resetWalkToPortal();
 							e.target.innerText = "Walk to Portal";
 							chatLog("Stopped autowalking.");
 						}
@@ -567,7 +576,7 @@ function watchPlayer(name) {
 		const pi = Object.values(Object.fromEntries(gameState.remotePlayers.remotePlayers)).find(t => t.info.name == name);
 		if (pi) {
 			gameState.cameraController.target = pi.container;
-			chatLog("The camera will be following " + name + " now.");
+			chatLog(`The camera will be following ${name} now.`);
 			return;
 		} else {
 			chatLog("Couldn't find the target player. The camera will be following you now.");
@@ -650,6 +659,11 @@ function onGameDataUpdate() {
 
 }
 
+function resetWalkToPortal() {
+	lunWalkToPortal = -1;
+	Object.values(Waypoints).forEach(t => t.forEach(w => w.crossed = false));
+}
+
 // TODO: Compare values before setting innerText so it doesn't flash like crazy in Inspector
 function tick() {
 	// TODO: Reset some settings if player is dead
@@ -661,8 +675,8 @@ function tick() {
 	var playerExp = gameState.myStat.exp;
 	var zoneId = gameState.zoneId % 10000;
 
-	lunHudElements.playersNearby.innerText = "Players nearby: " + gameState.remotePlayers.remotePlayers.size;
-	lunHudElements.zoneId.innerText = "Zone ID: " + zoneId;
+	lunHudElements.playersNearby.innerText = `Players nearby: ${gameState.remotePlayers.remotePlayers.size}`;
+	lunHudElements.zoneId.innerText = `Zone ID: ${zoneId}`;
 
 	if (lunExpTrackerStartExp > playerExp || lunTickCount >= lunExpTrackerNextTicks) {
 		lunExpTrackerSpeed = (playerExp - lunExpTrackerStartExp) / lunExpTrackerWindow * (1000 / lunTPS);
@@ -685,7 +699,7 @@ function tick() {
 		fetch("https://sr1.overture.io.kr/api/realtime/channels", {
 			"method": "GET",
 			"headers": {
-				"authorization": "Bearer " + AuthToken
+				"authorization": `Bearer ${AuthToken}`
 			},
 			"mode": "cors"
 		}).then(async x => {
@@ -705,7 +719,7 @@ function tick() {
 		fetch(`https://sr1.overture.io.kr/api/quests?period=${lunPinnedQuestPeriod}`, {
 			"method": "GET",
 			"headers": {
-				"authorization": "Bearer " + AuthToken
+				"authorization": `Bearer ${AuthToken}`
 			},
 			"mode": "cors"
 		}).then(async x => {
@@ -717,7 +731,6 @@ function tick() {
 
 			var q = resp.find(t => t.questId == lunPinnedQuestId);
 			if (!q || q.isClaimed) {
-				// TODO: Doesn't work?.. Whatever bro lmao
 				unpinQuest();
 				return;
 			}
@@ -742,14 +755,14 @@ function tick() {
 
 		if (currentIndex == -1 || targetIndex == -1) {
 			chatLog(`Stopped autowalking because there doesn't seem to be a way to get to the specified zone (z ${zoneId} -> ${currentIndex}, lw ${lunWalkToPortal} -> ${targetIndex}).`);
-			lunWalkToPortal = -1;
+			resetWalkToPortal();
 			return;
 		}
 
 		const sg = Math.sign(targetIndex - currentIndex);
 
 		if (sg == 0) {
-			lunWalkToPortal = -1;
+			resetWalkToPortal();
 			chatLog("You've arrived!");
 			return;
 		} else {
@@ -757,21 +770,36 @@ function tick() {
 
 			const portals = Portals[zoneId];
 			if (!portals) {
-				lunWalkToPortal = -1;
+				resetWalkToPortal();
 				chatLog("Stopped autowalking because the current zone has no portals registered.");
 				return;
 			}
 
 			const targetPortal = portals[targetZone];
 			if (!targetPortal) {
-				lunWalkToPortal = -1;
+				resetWalkToPortal();
 				chatLog("Stopped autowalking because it seems there is a portal missing.");
 				return;
+			}
+
+			// might look a bit jerky without `while` on a zone with multiple wps
+			const wps = Waypoints[zoneId];
+			if (wps) {
+				const wp = wps.find(t => !t.crossed);
+				if (wp) {
+					if (distanceToVector(wp) > 2) {
+						lunAutoTravelTarget = wp;
+						return;
+					} else {
+						wp.crossed = false;
+					}
+				}
 			}
 
 			lunAutoTravelTarget = targetPortal.pos;
 
 			if (lunSleep <= 0 && distanceToVector(lunAutoTravelTarget) <= 3) {
+				lunAutoTravelTarget = null;
 				gameState.tryUsePortal();
 				lunSleep = sec(3);
 			}
