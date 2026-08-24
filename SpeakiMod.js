@@ -189,8 +189,8 @@ const ZoneSequences = [1, 2, 5, 3, 6, 4, 7, 8, 9, 10];
 const Waypoints = {
 	5: [
 		{
-			x: 270,
-			z: 95,
+			x: 272,
+			z: 106,
 			crossed: false
 		}
 	]
@@ -388,7 +388,7 @@ document.body.appendChild(
 		}, [
 			buildElement("span", {
 				id: "spkmod-header",
-				innerText: "SpeakiMod v5.rc-3",
+				innerText: "SpeakiMod v5.rc-4",
 				onclick: _ => {
 					lunMenuFoldingLevel = (lunMenuFoldingLevel + 1) % 4;
 					switch (lunMenuFoldingLevel) {
@@ -791,7 +791,7 @@ function tick() {
 						lunAutoTravelTarget = wp;
 						return;
 					} else {
-						wp.crossed = false;
+						wp.crossed = true;
 					}
 				}
 			}
@@ -802,7 +802,7 @@ function tick() {
 			// this logic HEAVILY relies on that function returning 'true' during transitions
 			// and not sending off anything unnecessary to the server (thanks to gs.findNearbyPortal())
 			const dvk = distanceToVector(lunAutoTravelTarget);
-			if (dvk < 3) {
+			if (dvk < 2.9) {
 				if (lunSleep < 0) {
 					gameState.tryUsePortal()
 					lunSleep = sec(2);
