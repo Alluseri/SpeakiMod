@@ -1,11 +1,23 @@
+const usingDevToolsOrOldSpeakiInjector = !window.speakiInjectorVer;
+
 if (!window.gameState) {
 	alert("SpeakiMod is not installed correctly or the game updated! Can't proceed.");
 	throw "Injection error...";
 }
 
 if (!window.i18n) {
-	alert("SpeakiMod is not installed correctly or the game updated! The mod will work, but some translation-related features may not.");
+	if (usingDevToolsOrOldSpeakiInjector)
+		alert("Warning: SpeakiMod failed to discover 'i18n'. The mod will work, but you will see internal names instead of properly translated ones.\n\nPotential causes:\n- You are using the DevTools injection method\n- Game code changed");
+	else
+		alert("Warning: SpeakiMod failed to discover 'i18n'. The mod will work, but you will see internal names instead of properly translated ones.\n\nPotential causes:\n- Game code changed");
 	window.i18n = e => e;
+}
+
+if (!window.questManager) {
+	if (usingDevToolsOrOldSpeakiInjector)
+		alert("Warning: SpeakiMod failed to discover 'questManager'. The Quest Pinning functionality will be disabled.\n\nPotential causes:\n- You are using the DevTools injection method\n- You are using an outdated version of the SpeakiMod Injector extension");
+	else
+		alert("Warning: SpeakiMod failed to discover 'questManager'. The Quest Pinning functionality will be disabled.\n\nPotential causes:\n- Game code changed");
 }
 
 // This is needed to make requests to 'gameData', 'channels' and other API endpoints
@@ -177,6 +189,7 @@ const ZoneSequences = [1, 2, 5, 3, 6, 4, 7, 8, 9, 10];
 
 var GameData = null;
 
+/*
 fetch("https://sr1.overture.io.kr/api/gamedata", {
 	"method": "GET",
 	"headers": {
@@ -194,6 +207,7 @@ fetch("https://sr1.overture.io.kr/api/gamedata", {
 
 	onGameDataUpdate();
 });
+*/
 
 function buildElement(tag, characteristics, inner, callback) {
 	var elem = document.createElement(tag);
@@ -210,7 +224,12 @@ var lunHudElements = {
 	expTrackerL1: null,
 	expTrackerL2: null,
 	channelTracker: null,
-	zoneId: null
+	zoneId: null,
+	pinnedQuest: {
+		panel: null,
+		content: null,
+		pbar: null
+	}
 };
 var lunPanelElements = {
 	targetZone: null
@@ -225,7 +244,7 @@ var lunExpTrackerNextTicks = 0;
 var lunExpTrackerStartExp = gameState.myStat.exp;
 var lunExpTrackerSpeed = 0;
 
-var lunChannelTrackerWindow = 7500 / lunTPS;
+var lunChannelTrackerWindow = 10000 / lunTPS;
 var lunChannelTrackerNextTicks = 0;
 
 var lunWalkToPortal = -1;
@@ -256,7 +275,7 @@ document.head.appendChild(buildElement(
 			display: flex;
 			flex-direction: column;
 			gap: 1px;
-			background-color: #000C;
+			background: #000C;
 			border: ${spkmodBorderWidth} solid #DDD;
 			border-radius: 8px;
 			padding: 6px;
@@ -266,13 +285,13 @@ document.head.appendChild(buildElement(
 			flex-direction: column;
 			gap: 2px;
 		}
-		#spkmod-header, #spkmod-texpb {
+		#spkmod-header, #spkmod-texpb, #spkmod-pq-header {
 			border-bottom: 1px solid #DDD;
 			margin-bottom: 4px;
 		}
 		.spkmod-panel-btn {
 			color: #EEE;
-			background-color: #000C;
+			background: #000C;
 			border: ${spkmodBorderWidth} solid #DDD;
 			border-radius: 8px;
 			padding: 5px;
@@ -296,7 +315,7 @@ document.head.appendChild(buildElement(
 			outline: none;
 			border: ${spkmodBorderWidth} solid #DDD;
 			border-radius: 8px;
-			background-color: #000C;
+			background: #000C;
 			color: #EEE;
 			height: min-content;
 		}
@@ -306,10 +325,45 @@ document.head.appendChild(buildElement(
 		}
 		.spkmod-panel-combo {
 			outline: none;
-			background-color: #000C;
+			background: #000C;
 			color: #EEE;
 			border-radius: 8px;
 			border: ${spkmodBorderWidth} solid #DDD;
+		}
+		.spkmod-pq-button {
+			background: #000;
+			color: var(--sr-color-text-inverse);
+			border-color: #333;
+			box-shadow: 0 .1875rem 0 #333;
+			height: 2.125rem;
+			padding: 0 var(--sr-space-3);
+			border-radius: var(--sr-radius-md);
+			font-size: var(--sr-font-md);
+			cursor: var(--sr-cursor-pumpkin);
+			user-select: none;
+			border: .125rem solid #0000;
+			font-weight: 600;
+		}
+		#spkmod-pq {
+			display: flex;
+			flex-direction: column;
+			position: absolute;
+			right: 220px;
+			z-index: 600000;
+			width: 20%;
+			color: #FFF;
+			top: 18px;
+			background: #000C;
+			border: ${spkmodBorderWidth} solid #DDD;
+			border-radius: 8px;
+			padding: 6px;
+		}
+		#spkmod-pq.hidden {
+			display: none;
+		}
+		#spkmod-pq-pbar {
+			background: #0F0;
+			height: 2px;
 		}
 		`
 	}
@@ -324,7 +378,7 @@ document.body.appendChild(
 		}, [
 			buildElement("span", {
 				id: "spkmod-header",
-				innerText: "SpeakiMod v3",
+				innerText: "SpeakiMod v4",
 				onclick: e => {
 					lunMenuFoldingLevel = (lunMenuFoldingLevel + 1) % 4;
 					switch (lunMenuFoldingLevel) {
@@ -459,6 +513,25 @@ document.body.appendChild(
 	])
 );
 
+document.body.appendChild(
+	lunHudElements.pinnedQuest.panel = buildElement("div", {
+		id: "spkmod-pq",
+		className: "hidden"
+	}, [
+		buildElement("span", {
+			id: "spkmod-pq-header",
+			innerText: "Pinned Quest"
+		}),
+		lunHudElements.pinnedQuest.content = buildElement("span", {
+			id: "spkmod-pq-content",
+			innerText: "Pin a quest to be displayed here until completion."
+		}),
+		lunHudElements.pinnedQuest.pbar = buildElement("div", {
+			id: "spkmod-pq-pbar"
+		})
+	])
+)
+
 function sec(t) {
 	return t * lunTPS;
 }
@@ -490,7 +563,7 @@ function chatLog(msg) {
 
 function watchPlayer(name) {
 	if (name) {
-		var pi = Object.values(Object.fromEntries(gameState.remotePlayers.remotePlayers)).find(t => t.info.name == name);
+		const pi = Object.values(Object.fromEntries(gameState.remotePlayers.remotePlayers)).find(t => t.info.name == name);
 		if (pi) {
 			gameState.cameraController.target = pi.container;
 			chatLog("The camera will be following " + name + " now.");
@@ -522,10 +595,61 @@ if (hPartyTarget) {
 	alert("Warning: Couldn't find party target element. The Watch functionality will only be available through chat commands. Mod loaded too early?");
 }
 
+const lunPinnedQuestInterval = sec(5);
+var lunPinnedQuestPeriod = null;
+var lunPinnedQuestId = 0;
+var lunPinnedQuestContent = null;
+var lunPinnedQuestNextQueryTick = 0;
+
+function unpinQuest() {
+	lunHudElements.pinnedQuest.panel.hidden = true;
+
+	lunPinnedQuestContent = null;
+	lunPinnedQuestPeriod = null;
+	lunPinnedQuestId = 0;
+	lunPinnedQuestNextQueryTick = 0;
+}
+
+function pinQuest(quest) {
+	lunPinnedQuestContent = `${i18n(`content.quest.${quest.code}.title`)} ${quest.currentAmount} / ${quest.targetAmount}`;
+	lunPinnedQuestPeriod = quest.period;
+	lunPinnedQuestId = quest.questId;
+	lunPinnedQuestNextQueryTick = lunTickCount + sec(1);
+
+	lunHudElements.pinnedQuest.content.innerText = lunPinnedQuestContent;
+	lunHudElements.pinnedQuest.pbar.style.width = `${(quest.currentAmount / quest.targetAmount * 100).toFixed(0)}%`;
+
+	lunHudElements.pinnedQuest.panel.hidden = false;
+}
+
+if (window.questManager) {
+	const hkRenderRow = questManager.prototype.renderRow;
+	questManager.prototype.renderRow = function (quest) {
+		var questElm = hkRenderRow.apply(this, [quest]);
+
+		if (!quest.isCompleted) {
+			questElm.querySelector(".sr-list-item__subtitle")
+				.replaceWith(
+					buildElement("button", {
+						value: "",
+						className: "spkmod-pq-button",
+						innerText: "Pin Quest",
+						onclick: e => {
+							pinQuest(quest, questElm);
+						}
+					})
+				);
+		}
+
+		return questElm;
+	};
+}
+
 function onGameDataUpdate() {
 
 }
 
+// TODO: Compare values before setting innerText so it doesn't flash like crazy in Inspector
 function tick() {
 	// TODO: Reset some settings if player is dead
 
@@ -547,14 +671,14 @@ function tick() {
 	}
 
 	if (lunExpTrackerSpeed > 0) {
-		lunHudElements.expTrackerL1.innerText = (lunExpTrackerSpeed * 60).toFixed(2) + " EXP per minute";
-		lunHudElements.expTrackerL2.innerText = "Until next level: ~" + ((gameState.myStat.maxExp - playerExp) / lunExpTrackerSpeed / 60).toFixed(2) + " min";
+		lunHudElements.expTrackerL1.innerText = `${(lunExpTrackerSpeed * 60).toFixed(2)} EXP per minute`;
+		lunHudElements.expTrackerL2.innerText = `Until next level: ~${((gameState.myStat.maxExp - playerExp) / lunExpTrackerSpeed / 60).toFixed(2)} min`;
 	} else {
 		lunHudElements.expTrackerL1.innerText = "0 EXP per minute";
 		lunHudElements.expTrackerL2.innerText = "Until next level: N/A";
 	}
 
-	lunHudElements.expTrackerL1.innerText += " (" + ((lunExpTrackerNextTicks - lunTickCount) * lunTPS / 1000).toFixed(0) + "s)";
+	lunHudElements.expTrackerL1.innerText += ` (${((lunExpTrackerNextTicks - lunTickCount) * lunTPS / 1000).toFixed(0)}s)`;
 
 	if (lunTickCount >= lunChannelTrackerNextTicks) {
 		fetch("https://sr1.overture.io.kr/api/realtime/channels", {
@@ -566,7 +690,7 @@ function tick() {
 		}).then(async x => {
 			var resp = (await x.json());
 			if (!x.ok) {
-				lunHudElements.channelTracker.innerText = "Channel tracker: Error " + x.status;
+				lunHudElements.channelTracker.innerText = `Channel tracker: Error ${x.status}`;
 				return;
 			}
 
@@ -576,16 +700,46 @@ function tick() {
 		lunChannelTrackerNextTicks = lunTickCount + lunChannelTrackerWindow;
 	}
 
+	if (lunPinnedQuestId && lunTickCount >= lunPinnedQuestNextQueryTick) {
+		fetch(`https://sr1.overture.io.kr/api/quests?period=${lunPinnedQuestPeriod}`, {
+			"method": "GET",
+			"headers": {
+				"authorization": "Bearer " + AuthToken
+			},
+			"mode": "cors"
+		}).then(async x => {
+			var resp = (await x.json());
+			if (!x.ok) {
+				lunHudElements.pinnedQuest.content.innerText = `Failed to update quest info: ${x.status}`;
+				return;
+			}
+
+			var q = resp.find(t => t.questId == lunPinnedQuestId);
+			if (!q || q.isClaimed) {
+				unpinQuest();
+				return;
+			}
+
+			// TODO: This is probably duplicate code from pinQuest
+			lunPinnedQuestContent = `${i18n(`content.quest.${q.code}.title`)} ${q.currentAmount} / ${q.targetAmount}`;
+
+			lunHudElements.pinnedQuest.content.innerText = lunPinnedQuestContent;
+			lunHudElements.pinnedQuest.pbar.style.width = `${(q.currentAmount / q.targetAmount * 100).toFixed(0)}%`;
+		});
+
+		lunPinnedQuestNextQueryTick += lunPinnedQuestInterval;
+	}
+
 	gameState.remotePlayers.remotePlayers.forEach(t => t.container.children[0].children[1].visible = !lunNametagsHidden);
 
 	if (lunWalkToPortal != -1 && zoneId) {
 		// TODO: This doesn't reset the button state
 
-		var currentIndex = ZoneSequences.indexOf(zoneId - 0);
-		var targetIndex = ZoneSequences.indexOf(lunWalkToPortal - 0);
+		const currentIndex = ZoneSequences.indexOf(zoneId - 0);
+		const targetIndex = ZoneSequences.indexOf(lunWalkToPortal - 0);
 
 		if (currentIndex == -1 || targetIndex == -1) {
-			chatLog("Stopped autowalking because there doesn't seem to be a way to get to the specified zone (z " + zoneId + " -> " + currentIndex + ", lw " + lunWalkToPortal + " -> " + targetIndex + ").");
+			chatLog(`Stopped autowalking because there doesn't seem to be a way to get to the specified zone (z ${zoneId} -> ${currentIndex}, lw ${lunWalkToPortal} -> ${targetIndex}).`);
 			lunWalkToPortal = -1;
 			return;
 		}
@@ -597,16 +751,16 @@ function tick() {
 			chatLog("You've arrived!");
 			return;
 		} else {
-			var targetZone = ZoneSequences[currentIndex + sg];
+			const targetZone = ZoneSequences[currentIndex + sg];
 
-			var portals = Portals[zoneId];
+			const portals = Portals[zoneId];
 			if (!portals) {
 				lunWalkToPortal = -1;
 				chatLog("Stopped autowalking because the current zone has no portals registered.");
 				return;
 			}
 
-			var targetPortal = portals[targetZone];
+			const targetPortal = portals[targetZone];
 			if (!targetPortal) {
 				lunWalkToPortal = -1;
 				chatLog("Stopped autowalking because it seems there is a portal missing.");
@@ -624,9 +778,9 @@ function tick() {
 }
 
 var hkCombatAssistUpdate = gameState.combatAssist.update.bind(gameState.combatAssist);
-gameState.combatAssist.update = function (e) {
+gameState.combatAssist.update = (e) => {
 	if (lunAutoTravelTarget) {
-		var pp = getPlayerPos();
+		const pp = getPlayerPos();
 
 		return {
 			moveDir: normalizeVector(
@@ -641,20 +795,18 @@ gameState.combatAssist.update = function (e) {
 }
 
 var hkComputeCameraTargetPosition = gameState.cameraController.computeCameraTargetPosition.bind(gameState.cameraController);
-gameState.cameraController.computeCameraTargetPosition = function (pos) {
+gameState.cameraController.computeCameraTargetPosition = (pos) => {
 	if (!lunCameraLocked)
 		return hkComputeCameraTargetPosition(pos);
 }
 
 var hkCameraControllerGetObstacles = gameState.cameraController.getObstacles.bind(gameState.cameraController);
-gameState.cameraController.getObstacles = function () {
-	return lunViewClip ? [] : hkCameraControllerGetObstacles();
-}
+gameState.cameraController.getObstacles = () => lunViewClip ? [] : hkCameraControllerGetObstacles()
 
 var hkTrySendChat = gameState.trySendChat.bind(gameState);
-gameState.trySendChat = function (msg) {
+gameState.trySendChat = (msg) => {
 	if (msg.startsWith("!")) {
-		var cmd = msg.substring(1).split(" ");
+		const cmd = msg.substring(1).split(" ");
 		switch (cmd[0]) {
 			case "watch":
 				watchPlayer(cmd[1]);
@@ -666,10 +818,10 @@ gameState.trySendChat = function (msg) {
 					return;
 				}
 
-				chatLog("Set camera zoom to " + (gameState.cameraController.cameraZoomDistance = Number.parseInt(cmd[1]) || 12) + "!");
+				chatLog(`Set camera zoom to ${gameState.cameraController.cameraZoomDistance = Number.parseInt(cmd[1]) || 12}!`);
 				break;
 			default:
-				chatLog("Unknown command: " + cmd[0]);
+				chatLog(`Unknown command: ${cmd[0]}`);
 				chatLog("Available commands: watch, zoom");
 				break;
 		}
