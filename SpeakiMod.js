@@ -212,7 +212,7 @@ fetch("https://sr1.overture.io.kr/api/gamedata", {
 function buildElement(tag, characteristics, inner, callback) {
 	var elem = document.createElement(tag);
 	elem.replaceChildren(...(inner?.filter(t => t) || []));
-	for (let _ in (characteristics || {})) {
+	for (const _ in (characteristics || {})) {
 		elem[_] = characteristics[_];
 	}
 	if (callback) callback(elem);
@@ -377,7 +377,7 @@ document.body.appendChild(
 			buildElement("span", {
 				id: "spkmod-header",
 				innerText: "SpeakiMod v4",
-				onclick: e => {
+				onclick: _ => {
 					lunMenuFoldingLevel = (lunMenuFoldingLevel + 1) % 4;
 					switch (lunMenuFoldingLevel) {
 						case 0:
@@ -422,7 +422,7 @@ document.body.appendChild(
 				className: "spkmod-panel-btn",
 				innerText: "Dance",
 				value: "",
-				onclick: e => {
+				onclick: _ => {
 					gameState.sendEmoteNow(Emotes.Dance);
 				}
 			}),
@@ -430,7 +430,7 @@ document.body.appendChild(
 				className: "spkmod-panel-btn",
 				innerText: "Joayo",
 				value: "",
-				onclick: e => {
+				onclick: _ => {
 					gameState.sendEmoteNow(Emotes.PumpkinJoayo);
 				}
 			}),
@@ -438,7 +438,7 @@ document.body.appendChild(
 				className: "spkmod-panel-btn",
 				innerText: "Turn to Camera",
 				value: "",
-				onclick: e => {
+				onclick: _ => {
 					gameState.playerContainer.rotation.y = gameState.cameraController.cameraYaw;
 					gameState.moveSendAccumulator = 1;
 				}
@@ -447,7 +447,7 @@ document.body.appendChild(
 				className: "spkmod-panel-btn",
 				innerText: "Reset Camera",
 				value: "",
-				onclick: e => {
+				onclick: _ => {
 					watchPlayer();
 				}
 			}),
@@ -513,7 +513,8 @@ document.body.appendChild(
 
 document.body.appendChild(
 	lunHudElements.pinnedQuest.panel = buildElement("div", {
-		id: "spkmod-pq"
+		id: "spkmod-pq",
+		hidden: true
 	}, [
 		buildElement("span", {
 			id: "spkmod-pq-header",
@@ -534,7 +535,7 @@ function sec(t) {
 }
 
 function normalizeVector(x, y) {
-	let n = Math.sqrt(x * x + y * y);
+	const n = Math.sqrt(x * x + y * y);
 	return n < 1e-6 ? {
 		x: 0,
 		z: 0
@@ -592,7 +593,7 @@ if (hPartyTarget) {
 	alert("Warning: Couldn't find party target element. The Watch functionality will only be available through chat commands. Mod loaded too early?");
 }
 
-const lunPinnedQuestInterval = sec(5);
+const lunPinnedQuestInterval = sec(3);
 var lunPinnedQuestPeriod = null;
 var lunPinnedQuestId = 0;
 var lunPinnedQuestContent = null;
@@ -631,7 +632,7 @@ if (window.questManager) {
 						value: "",
 						className: "spkmod-pq-button",
 						innerText: "Pin Quest",
-						onclick: e => {
+						onclick: _ => {
 							pinQuest(quest, questElm);
 						}
 					})
@@ -713,6 +714,7 @@ function tick() {
 
 			var q = resp.find(t => t.questId == lunPinnedQuestId);
 			if (!q || q.isClaimed) {
+				// TODO: Doesn't work?.. Whatever bro lmao
 				unpinQuest();
 				return;
 			}
