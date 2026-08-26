@@ -333,6 +333,7 @@ document.head.appendChild(buildElement(
 			font-size: 11pt;
 			cursor: pointer;
 			outline: none;
+			flex: 1;
 		}
 		.spkmod-watch-player-btn {
 			color: #FFF;
@@ -759,7 +760,12 @@ function tick() {
 	lunTickCount++;
 	lunSleep--;
 
-	SpeakiModding.tick.forEach(cb => lunAutoTravelTarget = cb(lunTickCount, lunSleep));
+	SpeakiModding.tick.forEach(cb => {
+		const result = cb(lunTickCount, lunSleep);
+
+		if (!lunAutoTravelTarget && result && result.x && result.z)
+			lunAutoTravelTarget = result;
+	});
 
 	var playerExp = gameState.myStat.exp;
 	var zoneId = gameState.zoneId % 10000;
