@@ -11,6 +11,7 @@ Unlike its evil twin, SpeakiMod **is fully safe** to use on your main account si
 - Channel tracker
 - Dance anywhere
 - Say "joayo!" anywhere
+- Spin very fast (defeating the mobile monopoly)
 - Lock the camera (like in old PS1 games)
 - ViewClip (allow the camera to phase through walls)
 - Watch the game from another player's perspective
