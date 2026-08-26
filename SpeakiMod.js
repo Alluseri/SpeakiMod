@@ -344,7 +344,7 @@ document.head.appendChild(buildElement(
 		.spkmod-panel-cat {
 			display: flex;
 			flex-direction: row;
-			gap: 4px;
+			gap: 2px;
 			align-items: center;
 		}
 		.spkmod-panel-counter {
