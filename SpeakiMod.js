@@ -1,9 +1,14 @@
+if (window.speakiMod)
+	throw "Duplicate injection";
+
 const usingDevToolsOrOldSpeakiInjector = !window.speakiInjectorVer;
 
 if (!window.gameState) {
 	alert("SpeakiMod is not installed correctly or the game updated! Can't proceed.");
 	throw "Injection error...";
 }
+
+window.speakiMod = true;
 
 if (!window.i18n) {
 	if (usingDevToolsOrOldSpeakiInjector)
@@ -21,7 +26,17 @@ if (!window.questManager) {
 }
 
 // This is needed to make requests to 'gameData', 'channels' and other API endpoints
-const AuthToken = gameState.socket.socket.url.match(/eyJhb.+?(?=&|$)/);
+var AuthToken = gameState.socket.socket.url.match(/eyJhb.+?(?=&|$)/);
+
+gameState.handleLogin = () => {
+	console.log("Warning: handleLogin called multiple times");
+	AuthToken = gameState.socket.socket.url.match(/eyJhb.+?(?=&|$)/);
+}
+
+window.SpeakiModding = {
+	tick: [],
+	processCommand: []
+};
 
 const Emotes = {
 	Cry: 1,
@@ -255,13 +270,14 @@ var lunMenuFoldingLevel = 0;
 
 var lunTickCount = 0;
 var lunSleep = 0;
-const lunTPS = 50;
-const lunExpTrackerWindow = 60000 / lunTPS;
+const lunTPS = 20;
+const lunInvTPS = 1000 / lunTPS;
+const lunExpTrackerWindow = 60000 / lunInvTPS;
 var lunExpTrackerNextTicks = 0;
 var lunExpTrackerStartExp = gameState.myStat.exp;
 var lunExpTrackerSpeed = 0;
 
-var lunChannelTrackerWindow = 10000 / lunTPS;
+var lunChannelTrackerWindow = 10000 / lunInvTPS;
 var lunChannelTrackerNextTicks = 0;
 
 var lunWalkToPortal = -1;
@@ -269,6 +285,8 @@ var lunAutoTravelTarget = null;
 var lunCameraLocked = false;
 var lunNametagsHidden = false;
 var lunViewClip = false;
+var lunSpinSpeed = 0;
+var lunSpinAngle = 0;
 
 const spkmodBorderWidth = "3px";
 
@@ -384,6 +402,9 @@ document.head.appendChild(buildElement(
 			background: #0F0;
 			height: 2px;
 		}
+		#spkmod-scam-warning>a {
+			color: cornflowerblue;
+		}
 		`
 	}
 ));
@@ -397,7 +418,7 @@ document.body.appendChild(
 		}, [
 			buildElement("span", {
 				id: "spkmod-header",
-				innerText: "SpeakiMod v5",
+				innerText: "SpeakiMod v6",
 				onclick: _ => {
 					lunMenuFoldingLevel = (lunMenuFoldingLevel + 1) % 4;
 					switch (lunMenuFoldingLevel) {
@@ -455,6 +476,48 @@ document.body.appendChild(
 					gameState.sendEmoteNow(Emotes.PumpkinJoayo);
 				}
 			}),
+			buildElement("div", {
+				className: "spkmod-panel-cat"
+			}, [
+				buildElement("button", {
+					className: "spkmod-panel-btn",
+					innerText: "Spin",
+					value: "",
+					onclick: _ => {
+						if (lunSpinSpeed) {
+							lunSpinSpeed = 0;
+						} else {
+							lunSpinAngle = gameState.playerContainer.rotation.y;
+							lunSpinSpeed += Math.PI * 2 / 180;
+						}
+					}
+				}),
+				buildElement("button", {
+					className: "spkmod-panel-btn",
+					innerText: "Faster!",
+					value: "",
+					onclick: _ => {
+						if (!lunSpinSpeed)
+							return;
+
+						lunSpinSpeed += Math.PI * 2 / 180;
+					}
+				}),
+				buildElement("button", {
+					className: "spkmod-panel-btn",
+					innerText: "Slower!",
+					value: "",
+					onclick: _ => {
+						if (!lunSpinSpeed)
+							return;
+
+						lunSpinSpeed -= Math.PI * 2 / 360; // intentional for more accurate control
+
+						if (lunSpinSpeed < 0)
+							lunSpinSpeed = 0;
+					}
+				}),
+			]),
 			buildElement("button", {
 				className: "spkmod-panel-btn",
 				innerText: "Turn to Camera",
@@ -550,8 +613,15 @@ document.body.appendChild(
 	])
 )
 
+document.querySelector(".sr-settings__blocklist")?.parentElement.appendChild(
+	buildElement("span", {
+		id: "spkmod-scam-warning",
+		innerHTML: "You are using SpeakiMod, an <b>open source</b> project made by Alluseri.<br>The source code is available <a href=\"https://github.com/Alluseri/SpeakiMod\">here</a>.<br>The project is distributed <b>for free</b>, there is no \"premium version\" or anything of that sort. Please don't get scammed!"
+	})
+);
+
 function sec(t) {
-	return t * lunTPS;
+	return t * lunInvTPS;
 }
 
 function normalizeVector(x, y) {
@@ -689,6 +759,8 @@ function tick() {
 	lunTickCount++;
 	lunSleep--;
 
+	SpeakiModding.tick.forEach(cb => lunAutoTravelTarget = cb(lunTickCount, lunSleep));
+
 	var playerExp = gameState.myStat.exp;
 	var zoneId = gameState.zoneId % 10000;
 
@@ -696,7 +768,7 @@ function tick() {
 	setText(lunHudElements.zoneId, `Zone ID: ${zoneId}`);
 
 	if (lunExpTrackerStartExp > playerExp || lunTickCount >= lunExpTrackerNextTicks) {
-		lunExpTrackerSpeed = (playerExp - lunExpTrackerStartExp) / lunExpTrackerWindow * (1000 / lunTPS);
+		lunExpTrackerSpeed = (playerExp - lunExpTrackerStartExp) / lunExpTrackerWindow * (1000 / lunInvTPS);
 
 		lunExpTrackerNextTicks = lunTickCount + lunExpTrackerWindow;
 		lunExpTrackerStartExp = playerExp;
@@ -708,10 +780,15 @@ function tick() {
 		expTrackerL1 = `${(lunExpTrackerSpeed * 60).toFixed(2)} EXP per minute`;
 		expTrackerL2 = `Until next level: ~${((gameState.myStat.maxExp - playerExp) / lunExpTrackerSpeed / 60).toFixed(2)} min`;
 	}
-	expTrackerL1 += ` (${((lunExpTrackerNextTicks - lunTickCount) * lunTPS / 1000).toFixed(0)}s)`;
+	expTrackerL1 += ` (${((lunExpTrackerNextTicks - lunTickCount) * lunInvTPS / 1000).toFixed(0)}s)`;
 
 	setText(lunHudElements.expTrackerL1, expTrackerL1);
 	setText(lunHudElements.expTrackerL2, expTrackerL2);
+
+	if (lunSpinSpeed) {
+		gameState.playerContainer.rotation.y = (lunSpinAngle += lunSpinSpeed);
+		gameState.moveSendAccumulator = 1;
+	}
 
 	if (lunMenuFoldingLevel < 2 && lunTickCount >= lunChannelTrackerNextTicks) {
 		fetch("https://sr1.overture.io.kr/api/realtime/channels", {
@@ -871,6 +948,9 @@ gameState.trySendChat = (msg) => {
 				chatLog(`Set camera zoom to ${gameState.cameraController.cameraZoomDistance = Number.parseInt(cmd[1], 10) || 12}!`);
 				break;
 			default:
+				if (SpeakiModding.processCommand.map(cb => cb(cmd)).some(t => t))
+					break;
+
 				chatLog(`Unknown command: ${cmd[0]}`);
 				chatLog("Available commands: watch, zoom");
 				break;
@@ -881,4 +961,4 @@ gameState.trySendChat = (msg) => {
 	return hkTrySendChat(msg);
 }
 
-setInterval(tick, 50);
+setInterval(tick, lunInvTPS);
