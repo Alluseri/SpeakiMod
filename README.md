@@ -23,7 +23,7 @@ Unlike its evil twin, SpeakiMod **is fully safe** to use on your main account si
 - Control camera zoom (`!zoom` chat command)
 
 ### Preview
-<img src="https://cdn.nest.rip/uploads/4ceeb213-8112-43ef-89fc-7ae3f0118133.png">
+<img src="https://cdn.nest.rip/uploads/7e878697-ff0f-488d-9fd8-9fb1e41c58c1.png">
 <img src="https://cdn.nest.rip/uploads/4e405b56-f8a9-4ef8-b3e1-2ae5e0623a5b.png">
 <img src="https://cdn.nest.rip/uploads/bbb13c2f-014e-4278-b821-18eb481c5d8c.png">
 
